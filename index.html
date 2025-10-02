@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Python Cron Job Runner</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 0; background-color: #f8f9fa; color: #212529; }
+        .container { max-width: 1000px; margin: 20px auto; padding: 20px; background-color: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1, h2 { color: #343a40; border-bottom: 2px solid #dee2e6; padding-bottom: 10px; }
+        .btn { padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold; text-transform: uppercase; }
+        .btn-primary { background-color: #007bff; color: white; }
+        .btn-secondary { background-color: #6c757d; color: white; }
+        .btn-success { background-color: #28a745; color: white; }
+        .btn-danger { background-color: #dc3545; color: white; }
+        .btn-warning { background-color: #ffc107; color: white; }
+        .btn:hover { opacity: 0.9; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        textarea, input[type="number"] { width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ced4da; box-sizing: border-box; font-family: monospace; }
+        textarea { height: 200px; resize: vertical; }
+        #log-output { background-color: #212529; color: #f8f9fa; padding: 15px; border-radius: 4px; margin-top: 15px; height: 300px; overflow-y: auto; white-space: pre-wrap; font-family: monospace; }
+        .log-line.error { color: #ff5c5c; }
+        #jobs-list { list-style-type: none; padding: 0; }
+        #jobs-list li { background-color: #e9ecef; padding: 15px; border-radius: 4px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .job-info { font-weight: bold; }
+        .hidden { display: none; }
+        .modal { display: none; position: fixed; z-index: 1; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); }
+        .modal-content { background-color: #fefefe; margin: 10% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 800px; border-radius: 8px; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #dee2e6; padding-bottom: 10px; }
+        .close-btn { color: #aaa; font-size: 28px; font-weight: bold; cursor: pointer; }
+        .close-btn:hover { color: black; }
+        .log-entry { border: 1px solid #ccc; border-radius: 4px; margin-bottom: 10px; }
+        .log-entry-header { background-color: #f1f1f1; padding: 10px; cursor: pointer; }
+        .log-entry-body { padding: 10px; display: none; background-color: #212529; color: #f8f9fa; white-space: pre-wrap; font-family: monospace; max-height: 400px; overflow-y: auto;}
+        .log-entry-body .error { color: #ff5c5c; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Python Cron Job Runner</h1>
+
+        <!-- Saved Jobs Section -->
+        <section id="saved-jobs">
+            <h2>Saved Cron Jobs</h2>
+            <ul id="jobs-list"></ul>
+            <button class="btn btn-primary" onclick="showEditor()">+ Add New Cron Job</button>
+        </section>
+
+        <!-- Job Editor Section (hidden by default) -->
+        <section id="job-editor" class="hidden">
+            <h2 id="editor-title">Add New Cron Job</h2>
+            <input type="hidden" id="job-id">
+            <div class="form-group">
+                <label for="job-name">Script Name</label>
+                <input type="text" id="job-name" placeholder="e.g., Daily Report Generator">
+            </div>
+            <div class="form-group">
+                <label for="script-content">Python Script</label>
+                <textarea id="script-content" placeholder="print('Hello from my scheduled job!')"></textarea>
+            </div>
+            <div class="form-group">
+                <label for="interval">Interval (in seconds)</label>
+                <input type="number" id="interval" value="60" min="1">
+            </div>
+            <div>
+                <button class="btn btn-secondary" onclick="testScript()">Test Script</button>
+                <button id="save-btn" class="btn btn-success" onclick="saveJob()" disabled>Save Job</button>
+                <button class="btn btn-warning" onclick="hideEditor()">Cancel</button>
+            </div>
+            <div id="log-output"></div>
+        </section>
+
+        <!-- Log Viewer Modal -->
+        <div id="log-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 id="log-modal-title">Job Output</h2>
+                    <span class="close-btn" onclick="closeLogModal()">&times;</span>
+                </div>
+                <div id="log-history"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        let eventSource = null;
+        let hasError = false;
+
+        // --- UI Management ---
+        function showEditor(job = null) {
+            const editor = document.getElementById('job-editor');
+            const editorTitle = document.getElementById('editor-title');
+            const jobIdInput = document.getElementById('job-id');
+            const jobName = document.getElementById('job-name');
+            const scriptContent = document.getElementById('script-content');
+            const interval = document.getElementById('interval');
+            const logOutput = document.getElementById('log-output');
+            const saveBtn = document.getElementById('save-btn');
+
+            if (job) {
+                editorTitle.textContent = 'Edit Cron Job';
+                jobIdInput.value = job.id;
+                jobName.value = job.name;
+                scriptContent.value = job.script;
+                interval.value = job.interval;
+            } else {
+                editorTitle.textContent = 'Add New Cron Job';
+                jobIdInput.value = '';
+                jobName.value = '';
+                // Use \n for newlines, which is standard in JS strings.
+                scriptContent.value = "import time\n\nprint('Job started...')\ntime.sleep(2)\nprint('Job finished!')";
+                interval.value = '60';
+            }
+            logOutput.innerHTML = 'Logs will appear here after testing...';
+            saveBtn.disabled = true;
+            hasError = false;
+
+            editor.classList.remove('hidden');
+            document.getElementById('saved-jobs').classList.add('hidden');
+            window.scrollTo(0, 0);
+        }
+
+        function hideEditor() {
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+            }
+            document.getElementById('job-editor').classList.add('hidden');
+            document.getElementById('saved-jobs').classList.remove('hidden');
+            loadJobs();
+        }
+
+        function showLogModal(jobId, jobName) {
+            document.getElementById('log-modal-title').textContent = `Output for: ${jobName}`;
+            document.getElementById('log-modal').style.display = 'block';
+            loadLogHistory(jobId);
+        }
+
+        function closeLogModal() {
+            document.getElementById('log-modal').style.display = 'none';
+            document.getElementById('log-history').innerHTML = '';
+        }
+
+        // --- API Calls and Event Handling ---
+        async function loadJobs() {
+            const response = await fetch('/jobs');
+            const jobs = await response.json();
+            const jobsList = document.getElementById('jobs-list');
+            jobsList.innerHTML = '';
+            if (jobs.length === 0) {
+                jobsList.innerHTML = '<li>No saved jobs yet.</li>';
+            } else {
+                jobs.forEach(job => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `
+                        <span class="job-info">${job.name} (runs every ${job.interval}s)</span>
+                        <div>
+                            <button class="btn btn-secondary" onclick='viewJob("${job.id}")'>View/Edit</button>
+                            <button class="btn btn-primary" onclick='showLogModal("${job.id}", "${job.name}")'>View Output</button>
+                            <button class="btn btn-danger" onclick='deleteJob("${job.id}")'>Delete</button>
+                        </div>
+                    `;
+                    jobsList.appendChild(li);
+                });
+            }
+        }
+
+        async function loadLogHistory(jobId) {
+            const logHistoryDiv = document.getElementById('log-history');
+            logHistoryDiv.innerHTML = 'Loading logs...';
+            const response = await fetch(`/jobs/${jobId}/logs`);
+            const logs = await response.json();
+
+            if (logs.error) {
+                logHistoryDiv.innerHTML = `<div class="log-line error">Error loading logs: ${logs.error}</div>`;
+                return;
+            }
+
+            if (logs.length === 0) {
+                logHistoryDiv.innerHTML = 'No output has been recorded for this job yet.';
+                return;
+            }
+
+            logHistoryDiv.innerHTML = '';
+            logs.forEach((log, index) => {
+                const entryDiv = document.createElement('div');
+                entryDiv.className = 'log-entry';
+                entryDiv.innerHTML = `
+                    <div class="log-entry-header" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'block' ? 'none' : 'block';">
+                        <strong>${log.timestamp}</strong> - ${log.stderr ? '<span class="error">Finished with errors</span>' : 'Finished successfully'}
+                    </div>
+                    <div class="log-entry-body"><pre><strong>STDOUT:</strong>\n${log.stdout || '(no output)'}\n\n<strong>STDERR:</strong>\n${log.stderr ? `<span class="error">${log.stderr}</span>` : '(no errors)'}</pre></div>
+                `;
+                logHistoryDiv.appendChild(entryDiv);
+            });
+        }
+
+        function testScript() {
+            if (eventSource) {
+                eventSource.close();
+            }
+
+            const script = document.getElementById('script-content').value;
+            const logOutput = document.getElementById('log-output');
+            const saveBtn = document.getElementById('save-btn');
+
+            logOutput.innerHTML = 'Starting test run...\n';
+            saveBtn.disabled = true;
+            hasError = false;
+
+            eventSource = new EventSource(`/test-script?script=${encodeURIComponent(script)}`);
+
+            eventSource.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                const logLine = document.createElement('div');
+                logLine.textContent = data.line;
+                logLine.classList.add('log-line');
+                if (data.stream === 'stderr') {
+                    logLine.classList.add('error');
+                    hasError = true;
+                }
+                logOutput.appendChild(logLine);
+                logOutput.scrollTop = logOutput.scrollHeight; // Auto-scroll
+            };
+
+            eventSource.onerror = function(event) {
+                logOutput.innerHTML += '<div class="log-line error">Finished test run.</div>';
+                if (!hasError) {
+                    saveBtn.disabled = false;
+                    logOutput.innerHTML += '<div class="log-line">Test successful! You can now save the job.</div>';
+                } else {
+                    logOutput.innerHTML += '<div class="log-line error">Test finished with errors. Please fix the script before saving.</div>';
+                }
+                logOutput.scrollTop = logOutput.scrollHeight;
+                eventSource.close();
+            };
+        }
+
+        async function saveJob() {
+            const id = document.getElementById('job-id').value;
+            const name = document.getElementById('job-name').value;
+            const script = document.getElementById('script-content').value;
+            const interval = document.getElementById('interval').value;
+
+            const url = id ? `/jobs/${id}` : '/jobs';
+            const method = id ? 'PUT' : 'POST';
+
+            const response = await fetch(url, { 
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, script, interval: parseInt(interval) })
+            });
+
+            if (response.ok) {
+                alert('Job saved successfully!');
+                hideEditor();
+            } else {
+                const error = await response.json();
+                alert(`Error saving job: ${error.error}`);
+            }
+        }
+
+        async function viewJob(id) {
+            const response = await fetch(`/jobs/${id}`);
+            if (response.ok) {
+                const job = await response.json();
+                showEditor(job);
+            } else {
+                alert('Could not find job.');
+            }
+        }
+
+        async function deleteJob(id) {
+            if (!confirm('Are you sure you want to delete this job?')) return;
+
+            const response = await fetch(`/jobs/${id}`, { method: 'DELETE' });
+            if (response.ok) {
+                alert('Job deleted successfully.');
+                loadJobs();
+            } else {
+                alert('Error deleting job.');
+            }
+        }
+
+        // Initial load
+        document.addEventListener('DOMContentLoaded', loadJobs);
+    </script>
+</body>
+</html>
