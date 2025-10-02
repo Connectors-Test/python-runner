@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Python Script Runner Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 20px 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header h1 {
+            color: #333;
+            font-size: 28px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .header h1::before {
+            content: '🐍';
+            font-size: 32px;
+        }
+        
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .panel {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+        
+        .panel h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .code-editor {
+            width: 100%;
+            height: 300px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 14px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 10px;
+            background: #f8f9fa;
+            resize: vertical;
+        }
+        
+        .output-area {
+            width: 100%;
+            height: 300px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 13px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 10px;
+            background: #2d2d2d;
+            color: #00ff00;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        .error-area {
+            background: #2d2d2d;
+            color: #ff6b6b;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-run {
+            background: #4caf50;
+            color: white;
+        }
+        
+        .btn-stop {
+            background: #f44336;
+            color: white;
+        }
+        
+        .btn-pause {
+            background: #ff9800;
+            color: white;
+        }
+        
+        .btn-schedule {
+            background: #2196f3;
+            color: white;
+        }
+        
+        .btn-clear {
+            background: #9c27b0;
+            color: white;
+        }
+        
+        .execution-table {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+        
+        .execution-table h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th {
+            background: #f5f5f5;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #666;
+            border-bottom: 2px solid #ddd;
+        }
+        
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        tr:hover {
+            background: #f9f9f9;
+        }
+        
+        .status-running {
+            color: #4caf50;
+            font-weight: 600;
+        }
+        
+        .status-paused {
+            color: #ff9800;
+            font-weight: 600;
+        }
+        
+        .status-stopped {
+            color: #f44336;
+            font-weight: 600;
+        }
+        
+        .status-completed {
+            color: #2196f3;
+            font-weight: 600;
+        }
+        
+        .status-error {
+            color: #f44336;
+            font-weight: 600;
+        }
+        
+        .action-btns {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .action-btn {
+            padding: 5px 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.2s;
+        }
+        
+        .action-btn:hover {
+            transform: scale(1.1);
+        }
+        
+        .btn-play { background: #4caf50; }
+        .btn-pause-small { background: #ff9800; }
+        .btn-stop-small { background: #f44336; }
+        .btn-output { background: #00bcd4; }
+        .btn-error { background: #333; }
+        .btn-success { background: #8bc34a; }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-indicator.running {
+            background: #4caf50;
+        }
+        
+        .status-indicator.paused {
+            background: #ff9800;
+            animation: none;
+        }
+        
+        .status-indicator.stopped {
+            background: #f44336;
+            animation: none;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .info-box {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 10px 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            color: #1976d2;
+        }
+        
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-left: 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Python Script Runner Dashboard</h1>
+        </div>
+        
+        <div class="controls">
+            <button class="btn btn-run" id="btnRun" onclick="runScript()">
+                ▶️ Run Script
+            </button>
+            <button class="btn btn-stop" id="btnStop" onclick="stopCurrentScript()">
+                ⏹️ Stop
+            </button>
+            <button class="btn btn-pause" id="btnPause" onclick="pauseCurrentScript()">
+                ⏸️ Pause
+            </button>
+            <button class="btn btn-schedule" id="btnSchedule" onclick="scheduleScript()">
+                🕐 Schedule (2s interval)
+            </button>
+            <button class="btn btn-clear" onclick="clearAll()">
+                🗑️ Clear All
+            </button>
+        </div>
+        
+        <div class="main-grid">
+            <div class="panel">
+                <h2>📝 Script Editor</h2>
+                <textarea id="scriptEditor" class="code-editor" placeholder="# Enter your Python script here...">
+# Sample Python script
+import time
+import random
+
+print("Starting Python script execution...")
+
+for i in range(5):
+    value = random.randint(1, 100)
+    print(f"Iteration {i+1}: Random value = {value}")
+    time.sleep(1)
+
+print("Script completed successfully!")
+
+# You can also test error handling
+# raise Exception("This is a test error")</textarea>
+            </div>
+            
+            <div class="panel">
+                <h2>📤 Output</h2>
+                <div id="outputArea" class="output-area"></div>
+            </div>
+            
+            <div class="panel">
+                <h2>⚠️ Error Log</h2>
+                <div id="errorArea" class="output-area error-area"></div>
+            </div>
+            
+            <div class="panel">
+                <h2>ℹ️ Script Info</h2>
+                <div class="info-box">
+                    <p><strong>Status:</strong> <span class="status-indicator" id="statusIndicator"></span><span id="currentStatus">Ready</span></p>
+                    <p><strong>Current Execution:</strong> <span id="currentExecId">None</span></p>
+                    <p><strong>Execution Count:</strong> <span id="execCount">0</span></p>
+                    <p><strong>Last Run:</strong> <span id="lastRun">Never</span></p>
+                    <p><strong>Schedule:</strong> <span id="scheduleStatus">Not scheduled</span></p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="execution-table">
+            <h2>📊 Execution History</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Execution ID</th>
+                        <th>Timestamp</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="executionHistory">
+                    <!-- Rows will be added dynamically -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <script>
+        let currentExecutionId = null;
+        let scheduledId = null;
+        let executionCount = 0;
+        let statusCheckInterval = null;
+        let historyUpdateInterval = null;
+        
+        // API Base URL - Update this if your Flask app runs on a different port
+        const API_BASE = 'http://localhost:5004';
+        
+        async function runScript() {
+            const script = document.getElementById('scriptEditor').value;
+            if (!script.trim()) {
+                addToError('Error: No script provided!');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/run`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ script: script })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    currentExecutionId = data.execution_id;
+                    executionCount++;
+                    document.getElementById('currentExecId').textContent = currentExecutionId.substring(0, 8) + '...';
+                    document.getElementById('execCount').textContent = executionCount;
+                    document.getElementById('lastRun').textContent = new Date().toLocaleString();
+                    updateStatus('running');
+                    addToOutput(`\n[${new Date().toLocaleString()}] Starting script execution...\n`);
+                    
+                    // Start checking for status updates
+                    startStatusCheck();
+                } else {
+                    addToError(`Error: ${data.error}`);
+                }
+            } catch (error) {
+                addToError(`Connection Error: ${error.message}`);
+            }
+        }
+        
+        async function stopCurrentScript() {
+            if (!currentExecutionId) {
+                addToOutput('⚠️ No script is running!');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/stop/${currentExecutionId}`, {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    updateStatus('stopped');
+                    addToOutput('\n⏹️ Script execution stopped\n');
+                    stopStatusCheck();
+                }
+            } catch (error) {
+                addToError(`Error stopping script: ${error.message}`);
+            }
+        }
+        
+        async function pauseCurrentScript() {
+            if (!currentExecutionId) {
+                addToOutput('⚠️ No script is running!');
+                return;
+            }
+            
+            const currentStatus = document.getElementById('currentStatus').textContent;
+            const endpoint = currentStatus === 'Paused' ? 'resume' : 'pause';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/${endpoint}/${currentExecutionId}`, {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    if (endpoint === 'pause') {
+                        updateStatus('paused');
+                        addToOutput('\n⏸️ Script execution paused\n');
+                    } else {
+                        updateStatus('running');
+                        addToOutput('\n▶️ Script execution resumed\n');
+                    }
+                }
+            } catch (error) {
+                addToError(`Error: ${error.message}`);
+            }
+        }
+        
+        async function scheduleScript() {
+            const script = document.getElementById('scriptEditor').value;
+            if (!script.trim()) {
+                addToError('Error: No script to schedule!');
+                return;
+            }
+            
+            if (scheduledId) {
+                // Stop existing schedule
+                try {
+                    await fetch(`${API_BASE}/api/stop_schedule/${scheduledId}`, {
+                        method: 'POST'
+                    });
+                    scheduledId = null;
+                    document.getElementById('scheduleStatus').textContent = 'Not scheduled';
+                    addToOutput('\n🕐 Schedule cancelled\n');
+                } catch (error) {
+                    addToError(`Error stopping schedule: ${error.message}`);
+                }
+            } else {
+                // Start new schedule
+                try {
+                    const response = await fetch(`${API_BASE}/api/schedule`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ 
+                            script: script,
+                            schedule_id: 'default'
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (response.ok) {
+                        scheduledId = data.schedule_id;
+                        document.getElementById('scheduleStatus').textContent = 'Every 2 seconds';
+                        addToOutput('\n🕐 Script scheduled to run every 2 seconds\n');
+                    } else {
+                        addToError(`Error: ${data.error}`);
+                    }
+                } catch (error) {
+                    addToError(`Error scheduling script: ${error.message}`);
+                }
+            }
+        }
+        
+        function startStatusCheck() {
+            if (statusCheckInterval) {
+                clearInterval(statusCheckInterval);
+            }
+            
+            statusCheckInterval = setInterval(async () => {
+                if (currentExecutionId) {
+                    try {
+                        const response = await fetch(`${API_BASE}/api/status/${currentExecutionId}`);
+                        const data = await response.json();
+                        
+                        if (response.ok) {
+                            // Update output
+                            if (data.output && data.output.length > 0) {
+                                data.output.forEach(line => {
+                                    addToOutput(line + '\n');
+                                });
+                            }
+                            
+                            // Update errors
+                            if (data.errors && data.errors.length > 0) {
+                                data.errors.forEach(line => {
+                                    addToError(line);
+                                });
+                            }
+                            
+                            // Update status
+                            if (data.status === 'completed' || data.status === 'error' || data.status === 'stopped') {
+                                updateStatus(data.status);
+                                if (data.status === 'completed') {
+                                    addToOutput('\n✅ Script completed successfully!\n');
+                                }
+                                stopStatusCheck();
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Status check error:', error);
+                    }
+                }
+            }, 500);
+        }
+        
+        function stopStatusCheck() {
+            if (statusCheckInterval) {
+                clearInterval(statusCheckInterval);
+                statusCheckInterval = null;
+            }
+        }
+        
+        async function updateExecutionHistory() {
+            try {
+                const response = await fetch(`${API_BASE}/api/executions`);
+                const executions = await response.json();
+                
+                const historyTable = document.getElementById('executionHistory');
+                historyTable.innerHTML = '';
+                
+                executions.reverse().slice(0, 10).forEach((exec, index) => {
+                    const row = historyTable.insertRow();
+                    const statusClass = `status-${exec.status}`;
+                    
+                    row.innerHTML = `
+                        <td>${index + 1}</td>
+                        <td title="${exec.execution_id}">${exec.execution_id.substring(0, 8)}...</td>
+                        <td>${new Date(exec.start_time).toLocaleString()}</td>
+                        <td>${exec.type}</td>
+                        <td class="${statusClass}">${exec.status}</td>
+                        <td class="action-btns">
+                            <button class="action-btn btn-play" onclick="resumeExecution('${exec.execution_id}')" title="Resume">▶</button>
+                            <button class="action-btn btn-pause-small" onclick="pauseExecution('${exec.execution_id}')" title="Pause">⏸</button>
+                            <button class="action-btn btn-stop-small" onclick="stopExecution('${exec.execution_id}')" title="Stop">⏹</button>
+                            <button class="action-btn btn-output" onclick="showOutput('${exec.execution_id}')" title="Output">📤</button>
+                            <button class="action-btn btn-error" onclick="showErrors('${exec.execution_id}')" title="Errors">⚠️</button>
+                        </td>
+                    `;
+                });
+            } catch (error) {
+                console.error('Error updating execution history:', error);
+            }
+        }
+        
+        async function stopExecution(execId) {
+            try {
+                await fetch(`${API_BASE}/api/stop/${execId}`, { method: 'POST' });
+                addToOutput(`\nStopped execution ${execId.substring(0, 8)}...\n`);
+                updateExecutionHistory();
+            } catch (error) {
+                addToError(`Error stopping execution: ${error.message}`);
+            }
+        }
+        
+        async function pauseExecution(execId) {
+            try {
+                await fetch(`${API_BASE}/api/pause/${execId}`, { method: 'POST' });
+                addToOutput(`\nPaused execution ${execId.substring(0, 8)}...\n`);
+                updateExecutionHistory();
+            } catch (error) {
+                addToError(`Error pausing execution: ${error.message}`);
+            }
+        }
+        
+        async function resumeExecution(execId) {
+            try {
+                await fetch(`${API_BASE}/api/resume/${execId}`, { method: 'POST' });
+                addToOutput(`\nResumed execution ${execId.substring(0, 8)}...\n`);
+                updateExecutionHistory();
+            } catch (error) {
+                addToError(`Error resuming execution: ${error.message}`);
+            }
+        }
+        
+        async function showOutput(execId) {
+            try {
+                const response = await fetch(`${API_BASE}/api/output/${execId}`);
+                const data = await response.json();
+                
+                if (data.output && data.output.length > 0) {
+                    addToOutput(`\n📤 Output for execution ${execId.substring(0, 8)}:\n`);
+                    data.output.forEach(line => addToOutput(line + '\n'));
+                } else {
+                    addToOutput(`\n📤 No output for execution ${execId.substring(0, 8)}\n`);
+                }
+            } catch (error) {
+                addToError(`Error fetching output: ${error.message}`);
+            }
+        }
+        
+        async function showErrors(execId) {
+            try {
+                const response = await fetch(`${API_BASE}/api/output/${execId}`);
+                const data = await response.json();
+                
+                if (data.errors && data.errors.length > 0) {
+                    addToError(`\nErrors for execution ${execId.substring(0, 8)}:`);
+                    data.errors.forEach(line => addToError(line));
+                } else {
+                    addToOutput(`\n✅ No errors for execution ${execId.substring(0, 8)}\n`);
+                }
+            } catch (error) {
+                addToError(`Error fetching errors: ${error.message}`);
+            }
+        }
+        
+        function clearAll() {
+            document.getElementById('outputArea').textContent = '';
+            document.getElementById('errorArea').textContent = '';
+            addToOutput('🗑️ Output and error logs cleared\n');
+        }
+        
+        function addToOutput(text) {
+            const outputArea = document.getElementById('outputArea');
+            outputArea.textContent += text;
+            outputArea.scrollTop = outputArea.scrollHeight;
+        }
+        
+        function addToError(text) {
+            const errorArea = document.getElementById('errorArea');
+            const timestamp = new Date().toLocaleString();
+            errorArea.textContent += `[${timestamp}] ${text}\n`;
+            errorArea.scrollTop = errorArea.scrollHeight;
+        }
+        
+        function updateStatus(status) {
+            const statusElement = document.getElementById('currentStatus');
+            const indicator = document.getElementById('statusIndicator');
+            
+            switch(status) {
+                case 'running':
+                    statusElement.textContent = 'Running';
+                    indicator.className = 'status-indicator running';
+                    break;
+                case 'paused':
+                    statusElement.textContent = 'Paused';
+                    indicator.className = 'status-indicator paused';
+                    break;
+                case 'stopped':
+                    statusElement.textContent = 'Stopped';
+                    indicator.className = 'status-indicator stopped';
+                    break;
+                case 'completed':
+                    statusElement.textContent = 'Completed';
+                    indicator.className = 'status-indicator';
+                    break;
+                case 'error':
+                    statusElement.textContent = 'Error';
+                    indicator.className = 'status-indicator stopped';
+                    break;
+                default:
+                    statusElement.textContent = 'Ready';
+                    indicator.className = 'status-indicator';
+            }
+        }
+        
+        // Start history update interval
+        historyUpdateInterval = setInterval(updateExecutionHistory, 2000);
+        updateExecutionHistory();
+        
+        // Initial status
+        updateStatus('ready');
+    </script>
+</body>
+</html>
