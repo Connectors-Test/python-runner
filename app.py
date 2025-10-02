@@ -252,13 +252,14 @@ def delete_job(job_id):
         return jsonify({'message': 'Job deleted'})
     return jsonify({'error': 'Job not found'}), 404
 
-# --- Main Execution ---
 if __name__ == '__main__':
     # Load existing jobs and schedule them on startup
     print("Loading and scheduling existing jobs...")
     all_jobs = load_jobs_from_file()
     for job_id, job_details in all_jobs.items():
         add_or_update_scheduler_job(job_id, job_details['script'], job_details['interval'])
-    
-    print("Starting Flask server at http://127.0.0.1:5000")
-    app.run(debug=True, threaded=True)
+
+    # Render expects 0.0.0.0 + dynamic port
+    port = int(os.environ.get("PORT", 5000))
+    print(f"Starting Flask server at http://0.0.0.0:{port}")
+    app.run(host='0.0.0.0', port=port, debug=True, threaded=True)
